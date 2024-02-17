@@ -1,0 +1,34 @@
+# Load required library
+library(biomaRt)
+
+# Function to replace gene symbols with Entrez IDs in GMT file
+replace_gene_symbols_with_entrez_ids <- function(gmt_file_path, output_file_path) {
+  # Connect to Ensembl database
+  ensembl <- useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
+
+  # Read GMT file, considering trailing whitespace
+  gmt_data <- read.table(gmt_file_path, sep = "\t", stringsAsFactors = FALSE, fill = TRUE)
+
+  # Replace gene symbols with Entrez IDs
+  entrez_ids <- sapply(gmt_data[, -c(1, 2)], function(symbol) {
+    bm <- getBM(attributes = c("entrezgene_id"), filters = "hgnc_symbol", values = symbol, mart = ensembl)
+    if (nrow(bm) == 0) {
+      return(symbol)  # Keep original symbol if not found in Ensembl
+    } else {
+      return(bm$entrezgene_id[1])
+    }
+  })
+
+  # Write the new GMT file
+  gmt_data[, -c(1, 2)] <- entrez_ids
+  write.table(gmt_data, file = output_file_path, sep = "\t", quote = FALSE, row.names = FALSE)
+}
+
+# Main execution
+gmt_input_file <- "h.all.v2023.1.Hs.symbols.gmt"
+gmt_output_file <- "output_entrez.gmt"
+
+# Replace gene symbols with Entrez IDs in GMT file
+replace_gene_symbols_with_entrez_ids(gmt_input_file, gmt_output_file)
+
+cat(paste("Gene symbols in", gmt_input_file, "replaced with Entrez IDs. Output saved to", gmt_output_file, "\n"))
